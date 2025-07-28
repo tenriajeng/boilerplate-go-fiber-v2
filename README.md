@@ -17,13 +17,16 @@ A production-ready Go Fiber boilerplate with Clean Architecture, authentication,
 -   **Docker** - Containerized development and production
 -   **CI/CD** - GitHub Actions workflow
 -   **Monitoring** - Health checks and structured logging
+-   **Migration Management** - CLI tool and Makefile commands for database migrations
 
 ## 📁 Project Structure
 
 ```
 boilerplate-go-fiber-v2/
 ├── cmd/
-│   └── main.go                      # Entry point aplikasi
+│   ├── main.go                      # Entry point aplikasi
+│   └── migrate/
+│       └── main.go                  # Migration CLI tool
 │
 ├── config/
 │   ├── config.go                    # Load .env & config
@@ -102,83 +105,121 @@ boilerplate-go-fiber-v2/
 │   │   ├── payment_repository.go
 │   │   └── order_repository.go
 │   │
-│   └── external/                    # External service adapters
-│       └── payment/
-│           ├── xendit_adapter.go
-│           ├── midtrans_adapter.go
-│           └── payment_interface.go
+│   ├── model/                       # GORM models with conversion methods
+│   │   ├── user.go
+│   │   ├── auth.go
+│   │   ├── payment.go
+│   │   └── order.go
+│   │
+│   └── pkg/                         # Shared packages
+│       ├── utils/
+│       │   ├── app.go               # App initialization
+│       │   └── password.go          # Password utilities
+│       ├── jwt/
+│       │   └── jwt.go               # JWT utilities
+│       ├── response/
+│       │   └── response.go          # HTTP response helpers
+│       └── validator/
+│           └── validator.go         # Validation utilities
 │
-├── pkg/
-│   ├── jwt/
-│   │   └── jwt.go
-│   ├── response/
-│   │   └── response.go
-│   ├── utils/
-│   │   ├── password.go
-│   │   ├── currency.go
-│   │   └── string.go
-│   ├── validator/
-│   │   └── validator.go
-│   ├── logger/
-│   │   └── logger.go
-│   └── errors/
-│       └── errors.go
+├── migrations/                      # Database migrations
+│   ├── 00001_create_users_table.up.sql
+│   ├── 00001_create_users_table.down.sql
+│   ├── 00002_create_auth_tables.up.sql
+│   ├── 00002_create_auth_tables.down.sql
+│   └── ...
 │
-├── migrations/
-│   ├── 001_create_users.up.sql
-│   ├── 001_create_users.down.sql
-│   ├── 002_create_auth_sessions.up.sql
-│   ├── 002_create_auth_sessions.down.sql
-│   ├── 003_create_orders.up.sql
-│   ├── 003_create_orders.down.sql
-│   ├── 004_create_payments.up.sql
-│   └── 004_create_payments.down.sql
+├── docs/                           # Documentation
+│   ├── MIGRATION.md                # Migration management guide
+│   └── API.md                      # API documentation
 │
-├── docs/
-│   ├── api.md
-│   ├── setup.md
-│   └── deployment.md
+├── scripts/                        # Utility scripts
+│   └── setup_db.sh                 # Database setup script
 │
-├── scripts/
-│   ├── migrate.sh
-│   ├── seed.sh
-│   └── test.sh
+├── tests/                          # Test files
+│   ├── unit/
+│   ├── integration/
+│   └── e2e/
 │
-├── .env.example
-├── .env.test
-├── .gitignore
-├── .dockerignore
-├── go.mod
-├── go.sum
-├── README.md
-├── CHANGELOG.md
-├── LICENSE
-├── docker-compose.yml
-├── Dockerfile
-└── Makefile
+├── .env                            # Environment variables
+├── .env.example                    # Environment template
+├── .gitignore                      # Git ignore rules
+├── go.mod                          # Go modules
+├── go.sum                          # Go modules checksum
+├── Makefile                        # Build and migration commands
+├── Dockerfile                      # Docker configuration
+├── docker-compose.yml              # Docker Compose setup
+└── README.md                       # This file
 ```
 
-## 🏗️ Architecture
+## 🗄️ Migration Management
 
-This project follows **Clean Architecture** principles with clear separation of concerns:
+We provide comprehensive migration management tools:
 
-### Domain Layer
+### Quick Start
 
--   **Entities**: Pure business objects without framework dependencies
--   **Repository Interfaces**: Contracts for data access
--   **Services**: Business logic and use cases
+```bash
+# Show all available commands
+make help
 
-### Infrastructure Layer
+# Run migrations
+make migrate-up
 
--   **Repository Implementations**: Concrete database implementations
--   **External Services**: Payment gateway adapters
--   **Middleware**: HTTP request processing
+# Check migration status
+make migrate-status
 
-### Application Layer
+# Create new migration
+make migrate-create NAME=add_new_table
 
--   **Handlers**: HTTP request/response handling
--   **DTOs**: Data transfer objects for API communication
--   **Routes**: API versioning and route management
+# Wipe all data and recreate schema (DANGEROUS!)
+make migrate-wipe
+```
+
+### CLI Tool
+
+```bash
+# Show help
+go run cmd/migrate/main.go
+
+# Run migrations
+go run cmd/migrate/main.go -action=up
+
+# Check status
+go run cmd/migrate/main.go -action=status
+
+# Wipe data (with confirmation)
+go run cmd/migrate/main.go -action=wipe -confirm
+```
+
+### Wipe Data Functionality
+
+⚠️ **DANGER ZONE** - Use with extreme caution!
+
+```bash
+# Interactive confirmation
+make migrate-wipe
+
+# Direct wipe with confirmation flag
+go run cmd/migrate/main.go -action=wipe -confirm
+```
+
+**What wipe does:**
+
+-   🗑️ Drops all tables and sequences
+-   🔄 Removes migration version tracking
+-   📈 Runs all migrations to recreate schema
+-   ✨ Fresh database ready for use
+
+**Safety features:**
+
+-   ✅ Confirmation required for CLI tool
+-   ✅ Interactive prompt for Makefile
+-   ✅ Clear warnings about data loss
+-   ✅ Database name display before action
+
+### Documentation
+
+For detailed migration management, see [docs/MIGRATION.md](docs/MIGRATION.md).
 
 ## 🚀 Quick Start
 
