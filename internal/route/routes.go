@@ -2,10 +2,8 @@ package route
 
 import (
 	"boilerplate-go-fiber-v2/config"
-	"boilerplate-go-fiber-v2/internal/domain/repository"
-	"boilerplate-go-fiber-v2/internal/domain/service"
-	repo "boilerplate-go-fiber-v2/internal/repository"
-	v1 "boilerplate-go-fiber-v2/internal/route/v1"
+	"boilerplate-go-fiber-v2/internal/container"
+	v1Routes "boilerplate-go-fiber-v2/internal/route/v1"
 	"log"
 
 	"github.com/gofiber/fiber/v2"
@@ -18,71 +16,57 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, redis *redis.Client, cfg *config.C
 	// Health check endpoint
 	app.Get("/health", healthCheck)
 
+	// Initialize dependency container
+	container := container.NewContainer(db, redis, cfg)
+	log.Println("Dependency container initialized successfully")
+
 	// API routes
 	api := app.Group("/api")
 
 	// v1 routes
 	v1 := api.Group("/v1")
-	setupV1Routes(v1, db, redis, cfg)
+	setupV1Routes(v1, container, cfg, redis)
 
-	// v2 routes (for future use)
-	v2 := api.Group("/v2")
-	setupV2Routes(v2, db, redis, cfg)
+	// // v2 routes (future)
+	// v2 := api.Group("/v2")
+	// setupV2Routes(v2, container, cfg, redis)
 }
 
 // setupV1Routes configures v1 API routes
-func setupV1Routes(router fiber.Router, db *gorm.DB, redis *redis.Client, cfg *config.Config) {
+func setupV1Routes(router fiber.Router, container *container.Container, cfg *config.Config, redis *redis.Client) {
 	log.Println("Setting up v1 routes...")
 
-	// Initialize repositories
-	var userRepo repository.UserRepository
-	var authRepo repository.AuthRepository
+	// Setup v1 route modules
+	v1Routes.SetupAuthRoutes(router, container, cfg, redis)
+	v1Routes.SetupUserRoutes(router, container, cfg, redis)
 
-	if db != nil {
-		log.Println("Database is not nil, initializing repositories...")
-		userRepo = repo.NewUserRepository(db)
-		authRepo = repo.NewAuthRepository(db)
-		log.Println("Repositories initialized successfully")
-	} else {
-		log.Println("WARNING: Database is nil!")
-	}
-
-	// Initialize services
-	var userService service.UserService
-	var authService service.AuthService
-
-	if userRepo != nil {
-		log.Println("UserRepo is not nil, initializing services...")
-		userService = service.NewUserService(userRepo)
-		authService = service.NewAuthService(userRepo, authRepo, userService, cfg)
-		log.Println("Services initialized successfully")
-	} else {
-		log.Println("WARNING: UserRepo is nil!")
-	}
-
-	// Setup v1 routes
-	v1.SetupAuthRoutes(router, authService, userService, cfg, redis)
-
-	// Temporary test endpoint
+	// v1 test endpoint
 	router.Get("/test", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"message": "API v1 is working!",
+			"version": "1.0.0",
+			"status":  "stable",
 		})
 	})
 }
 
-// setupV2Routes configures v2 API routes
-func setupV2Routes(router fiber.Router, db *gorm.DB, redis *redis.Client, cfg *config.Config) {
-	// TODO: Initialize handlers and setup v2 routes
-	// This will be implemented in the next steps
-
-	// Temporary test endpoint
-	router.Get("/test", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"message": "API v2 is working!",
-		})
-	})
-}
+// setupV2Routes configures v2 API routes (commented until needed)
+// func setupV2Routes(router fiber.Router, container *container.Container, cfg *config.Config, redis *redis.Client) {
+// 	log.Println("Setting up v2 routes...")
+//
+// 	// TODO: Add v2 specific routes when needed
+// 	// v2Routes.SetupAuthRoutes(router, container, cfg, redis)
+// 	// v2Routes.SetupUserRoutes(router, container, cfg, redis)
+//
+// 	// v2 test endpoint
+// 	router.Get("/test", func(c *fiber.Ctx) error {
+// 		return c.JSON(fiber.Map{
+// 			"message": "API v2 is working!",
+// 			"version": "2.0.0",
+// 			"status":  "beta",
+// 		})
+// 	})
+// }
 
 // healthCheck handles the health check endpoint
 func healthCheck(c *fiber.Ctx) error {
